@@ -252,6 +252,7 @@ public class ModuleManager implements IManager {
     public static Chams chams = new Chams();
     public static Blink blink = new Blink();
     public static Phase phase = new Phase();
+    public static PearlPhase pearlPhase = new PearlPhase();
     public static NoBob noBob = new NoBob();
     public static Jesus jesus = new Jesus();
     public static XRay xray = new XRay();
