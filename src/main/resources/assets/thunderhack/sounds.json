@@ -88,5 +88,10 @@
     "sounds": [
       "thunderhack:cutie"
     ]
+  },
+  "stalker": {
+    "sounds": [
+      "thunderhack:stalker"
+    ]
   }
 }

@@ -60,6 +60,8 @@ public class SoundManager implements IManager {
     public SoundEvent RIFK_SOUNDEVENT = SoundEvent.of(RIFK_SOUND);
     public final Identifier CUTIE_SOUND = Identifier.of("thunderhack:cutie");
     public SoundEvent CUTIE_SOUNDEVENT = SoundEvent.of(CUTIE_SOUND);
+    public final Identifier STALKER_SOUND = Identifier.of("thunderhack:stalker");
+    public SoundEvent STALKER_SOUNDEVENT = SoundEvent.of(STALKER_SOUND);
 
 
     private final Timer scrollTimer = new Timer();
@@ -85,6 +87,7 @@ public class SoundManager implements IManager {
         Registry.register(Registries.SOUND_EVENT, PM_SOUND, PM_SOUNDEVENT);
         Registry.register(Registries.SOUND_EVENT, RIFK_SOUND, RIFK_SOUNDEVENT);
         Registry.register(Registries.SOUND_EVENT, CUTIE_SOUND, CUTIE_SOUNDEVENT);
+        Registry.register(Registries.SOUND_EVENT, STALKER_SOUND, STALKER_SOUNDEVENT);
     }
 
     public void playHitSound(SoundFX.HitSound value) {
