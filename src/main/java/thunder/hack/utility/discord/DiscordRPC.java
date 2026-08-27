@@ -4,7 +4,19 @@ import com.sun.jna.Native;
 import com.sun.jna.Library;
 
 public interface DiscordRPC extends Library {
-    DiscordRPC INSTANCE = Native.load("discord-rpc", DiscordRPC.class);
+    DiscordRPC INSTANCE = loadInstance();
+
+    // Safely load the discord-rpc native library. On platforms where it is
+    // unavailable (e.g. Android/aarch64 via Zalith Launcher) Native.load would
+    // throw UnsatisfiedLinkError during class initialization and crash the
+    // whole mod, so fall back to null and let callers no-op instead.
+    private static DiscordRPC loadInstance() {
+        try {
+            return Native.load("discord-rpc", DiscordRPC.class);
+        } catch (UnsatisfiedLinkError | RuntimeException ignored) {
+            return null;
+        }
+    }
     
     void Discord_UpdateHandlers(final DiscordEventHandlers p0);
     

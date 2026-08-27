@@ -70,7 +70,7 @@ public final class RPC extends Module {
         if (thread != null && !thread.isInterrupted()) {
             thread.interrupt();
         }
-        rpc.Discord_Shutdown();
+        if (rpc != null) rpc.Discord_Shutdown();
     }
 
     @Override
@@ -80,6 +80,14 @@ public final class RPC extends Module {
 
     public void startRpc() {
         if (isDisabled()) return;
+        if (rpc == null) { // native lib not available on this platform (e.g. Android)
+            // Defer disable until in-game: Module.disable() -> sortModules()
+            // needs FontRenderers.modules, which is only initialized later by
+            // MixinMinecraftClient. Calling it during onInitialize() NPEs.
+            if (!fullNullCheck())
+                disable(isRu() ? "Библиотека discord-rpc не найдена!" : "discord-rpc native library not found on this platform!");
+            return;
+        }
         if (!started) {
             started = true;
             DiscordEventHandlers handlers = new DiscordEventHandlers();
