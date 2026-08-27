@@ -10,6 +10,7 @@ import net.minecraft.util.math.Vec3d;
 import thunder.hack.core.manager.client.ModuleManager;
 import thunder.hack.features.modules.Module;
 import thunder.hack.setting.Setting;
+import thunder.hack.utility.Timer;
 import thunder.hack.utility.player.InteractionUtility;
 
 /**
@@ -27,13 +28,29 @@ public class PearlPhase extends Module {
     private final Setting<Boolean> autoYaw = new Setting<>("AutoYaw", true);
     private final Setting<Boolean> bypass = new Setting<>("Bypass", true);
     private final Setting<Boolean> pauseAC = new Setting<>("PauseAC", true);
+    private final Setting<Boolean> onlyOnGround = new Setting<>("OnlyOnGround", false);
+    // Pitch used for the throw. Bypass on -> Pitch value (default 89, the classic
+    // aggressive extreme); Bypass off -> clamps to a safer 80 max.
+    private final Setting<Float> pitch = new Setting<>("Pitch", 89f, 75f, 90f, v -> bypass.getValue());
+    private final Setting<Float> cooldown = new Setting<>("Cooldown", 2f, 0.5f, 10f);
 
     private Vec3d targetPos;
+    private final Timer cooldownTimer = new Timer();
 
     @Override
     public void onEnable() {
         if (fullNullCheck()) {
             disable();
+            return;
+        }
+
+        if (!cooldownTimer.passedS(cooldown.getValue())) {
+            disable("cooldown");
+            return;
+        }
+
+        if (onlyOnGround.getValue() && !mc.player.isOnGround()) {
+            disable("not on ground");
             return;
         }
 
@@ -51,10 +68,11 @@ public class PearlPhase extends Module {
         }
 
         // Bake the aim into the interact packet: yaw toward the clamp target
-        // (AutoYaw) or the player's current yaw; pitch is the classic
-        // 89/80 pearl-phase extremes.
+        // (AutoYaw) or the player's current yaw; pitch is configurable
+        // (Bypass off caps it at the safer 80).
         float yaw = autoYaw.getValue() ? InteractionUtility.calculateAngle(targetPos)[0] : mc.player.getYaw();
-        float pitch = bypass.getValue() ? 89f : 80f;
+        // Bypass on: configurable Pitch (75-90). Bypass off: fixed safer 80 (Alien semantics).
+        float pitch = bypass.getValue() ? this.pitch.getValue() : 80f;
 
         int prevSlot = mc.player.getInventory().selectedSlot;
 
@@ -71,6 +89,7 @@ public class PearlPhase extends Module {
             sendPacket(new UpdateSelectedSlotC2SPacket(prevSlot));
         }
 
+        cooldownTimer.reset();
         disable();
     }
 
