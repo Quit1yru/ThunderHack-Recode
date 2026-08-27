@@ -7,7 +7,6 @@ import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.screen.world.SelectWorldScreen;
-import net.minecraft.client.resource.language.I18n;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.Util;
@@ -24,7 +23,6 @@ import java.awt.*;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 import static thunder.hack.features.modules.Module.mc;
 
@@ -37,13 +35,13 @@ public class MainMenuScreen extends Screen {
         super(Text.of("THMainMenuScreen"));
         INSTANCE = this;
 
-        buttons.add(new MainMenuButton(-110, -70, I18n.translate("menu.singleplayer").toUpperCase(Locale.ROOT), () -> mc.setScreen(new SelectWorldScreen(this))));
-        buttons.add(new MainMenuButton(4, -70, I18n.translate("menu.multiplayer").toUpperCase(Locale.ROOT), () -> mc.setScreen(new MultiplayerScreen(this))));
-        buttons.add(new MainMenuButton(-110, -29, I18n.translate("menu.options")
-                .toUpperCase(Locale.ROOT)
-                .replace(".", ""), () -> mc.setScreen(new OptionsScreen(this, mc.options))));
+        // Hardcoded English: the custom font has no CJK glyphs, so translated
+        // labels (e.g. Chinese) render as tofu boxes. Force English always.
+        buttons.add(new MainMenuButton(-110, -70, "SINGLEPLAYER", () -> mc.setScreen(new SelectWorldScreen(this))));
+        buttons.add(new MainMenuButton(4, -70, "MULTIPLAYER", () -> mc.setScreen(new MultiplayerScreen(this))));
+        buttons.add(new MainMenuButton(-110, -29, "OPTIONS", () -> mc.setScreen(new OptionsScreen(this, mc.options))));
         buttons.add(new MainMenuButton(4, -29, "CLICKGUI", () -> ModuleManager.clickGui.setGui()));
-        buttons.add(new MainMenuButton(-110, 12, I18n.translate("menu.quit").toUpperCase(Locale.ROOT), mc::scheduleStop, true));
+        buttons.add(new MainMenuButton(-110, 12, "QUIT GAME", mc::scheduleStop, true));
     }
 
     private static MainMenuScreen INSTANCE = new MainMenuScreen();
