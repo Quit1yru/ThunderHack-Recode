@@ -2,11 +2,26 @@ package thunder.hack.features.modules.combat;
 
 import meteordevelopment.orbit.EventHandler;
 import net.minecraft.item.BlockItem;
+import net.minecraft.item.BowItem;
+import net.minecraft.item.BucketItem;
+import net.minecraft.item.CrossbowItem;
+import net.minecraft.item.EggItem;
+import net.minecraft.item.EnderEyeItem;
+import net.minecraft.item.EnderPearlItem;
+import net.minecraft.item.ExperienceBottleItem;
+import net.minecraft.item.FireworkRocketItem;
+import net.minecraft.item.FishingRodItem;
 import net.minecraft.item.Items;
+import net.minecraft.item.ItemStack;
+import net.minecraft.item.PotionItem;
+import net.minecraft.item.SnowballItem;
+import net.minecraft.item.TridentItem;
 import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerInteractBlockC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.network.packet.c2s.play.TeleportConfirmC2SPacket;
+import net.minecraft.network.packet.s2c.play.PlayerPositionLookS2CPacket;
 import net.minecraft.util.Hand;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -17,6 +32,7 @@ import thunder.hack.core.manager.player.CombatManager;
 import thunder.hack.core.manager.client.ModuleManager;
 import thunder.hack.events.impl.EventSync;
 import thunder.hack.events.impl.EventTick;
+import thunder.hack.events.impl.PacketEvent;
 import thunder.hack.features.modules.Module;
 import thunder.hack.setting.Setting;
 import thunder.hack.utility.Timer;
@@ -129,6 +145,19 @@ public class TPAnchor extends Module {
     public void onSync(EventSync event) {
         if (suppressMove)
             event.cancel();
+    }
+
+    // While spoofed: if the server answers with a position-look correction,
+    // swallow it (vanilla would setPosition - the real body would fly away)
+    // and confirm the teleport ourselves so the server keeps us at the
+    // spoofed spot.
+    @EventHandler
+    public void onPacketReceive(PacketEvent.Receive event) {
+        if (!suppressMove) return;
+        if (event.getPacket() instanceof PlayerPositionLookS2CPacket pac) {
+            event.cancel();
+            sendPacket(new TeleportConfirmC2SPacket(pac.getTeleportId()));
+        }
     }
 
     @EventHandler
@@ -374,18 +403,37 @@ public class TPAnchor extends Module {
     }
 
     /**
-     * Right-clicks the charged anchor with a non-block item to detonate it.
+     * Right-clicks the charged anchor to detonate it. Prefers an EMPTY hand:
+     * if the block-interact fails server-side, vanilla falls back to "use the
+     * held item" - with e.g. a pearl selected that THROWS the pearl. An empty
+     * hand has no use action, so the worst case is a no-op.
      */
     private boolean explodeAnchor() {
         if (mc.world == null || mc.player == null || anchorBhr == null) return false;
 
-        // any non-block item in hotbar (a stick, sword...)
-        SearchInvResult nonBlock = InventoryUtility.findInHotBar(stack -> !(stack.getItem() instanceof BlockItem));
-        if (!nonBlock.found()) return false;
+        // empty slot first, then a non-block item that has no instant "use"
+        // action (no throwables / potions / xp bottles / eyes / bows)
+        SearchInvResult hand = InventoryUtility.findInHotBar(ItemStack::isEmpty);
+        if (!hand.found()) {
+            hand = InventoryUtility.findInHotBar(stack -> !(stack.getItem() instanceof BlockItem)
+                    && !(stack.getItem() instanceof EnderPearlItem)
+                    && !(stack.getItem() instanceof SnowballItem)
+                    && !(stack.getItem() instanceof EggItem)
+                    && !(stack.getItem() instanceof ExperienceBottleItem)
+                    && !(stack.getItem() instanceof EnderEyeItem)
+                    && !(stack.getItem() instanceof PotionItem)
+                    && !(stack.getItem() instanceof BowItem)
+                    && !(stack.getItem() instanceof CrossbowItem)
+                    && !(stack.getItem() instanceof TridentItem)
+                    && !(stack.getItem() instanceof FishingRodItem)
+                    && !(stack.getItem() instanceof BucketItem)
+                    && !(stack.getItem() instanceof FireworkRocketItem));
+        }
+        if (!hand.found()) return false;
 
         int prevSlot = mc.player.getInventory().selectedSlot;
 
-        nonBlock.switchToSilent();
+        hand.switchToSilent();
 
         sendSequencedPacket(id -> new PlayerInteractBlockC2SPacket(Hand.MAIN_HAND, anchorBhr, id));
         sendPacket(new HandSwingC2SPacket(Hand.MAIN_HAND));
