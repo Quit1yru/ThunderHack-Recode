@@ -238,6 +238,7 @@ public class TPAnchor extends Module {
             return;
         }
         warnedNoSpot = false;
+        anchorPos = anchorBlock;
 
         // stand position: one block BESIDE the anchor (not inside it - the
         // blast would hit us at point-blank otherwise).
