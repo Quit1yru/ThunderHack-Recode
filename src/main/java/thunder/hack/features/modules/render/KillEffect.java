@@ -59,6 +59,9 @@ public class KillEffect extends Module {
     private final Map<Entity, Long> lightingEntities = new ConcurrentHashMap<>();
     private final List<DeathEffect> deathEffects = new CopyOnWriteArrayList<>();
     private final Map<Entity, Long> recentlyAttacked = new ConcurrentHashMap<>();
+    // entities whose death already fired the Marker effect this "life";
+    // re-armed when the entity is alive again (FakePlayer respawn / player relogin)
+    private final Map<Entity, Long> triggered = new ConcurrentHashMap<>();
     private int killStreak = 0;
     private long lastKillTime = 0L;
 
@@ -129,25 +132,24 @@ public class KillEffect extends Module {
 
             if (entity == mc.player || renderEntities.containsKey(entity) || lightingEntities.containsKey(entity))
                 return;
-            if (entity.isAlive() || liv.getHealth() != 0) return;
+            if (entity.isAlive() || liv.getHealth() != 0) {
+                // alive again (e.g. respawned dummy) - re-arm so its next death counts
+                triggered.remove(entity);
+                return;
+            }
 
             if (playSound.getValue() && mode.getValue() == Mode.Orthodox)
                 mc.world.playSound(mc.player, entity.getBlockPos(), Managers.SOUND.ORTHODOX_SOUNDEVENT, SoundCategory.BLOCKS, volume.getValue() / 100f, 1f);
 
             if (mode.getValue() == Mode.Marker) {
-                if (!(entity instanceof PlayerEntity)) return; // mobs drift after death and bypass the 0.5-block coord dedup, causing repeated pattern/audio
+                if (!(entity instanceof PlayerEntity)) return;
                 if (onlySelf.getValue() && !recentlyAttacked.containsKey(entity)) return; // not our kill
+                if (triggered.containsKey(entity)) return; // already fired for this corpse
+                triggered.put(entity, System.currentTimeMillis());
                 double ex = entity.getX();
                 double ey = entity.getY() + 1.0;
                 double ez = entity.getZ();
-                boolean exists = false;
-                for (DeathEffect e : deathEffects) {
-                    if (Math.abs(e.x - ex) < 0.5 && Math.abs(e.y - ey) < 0.5 && Math.abs(e.z - ez) < 0.5) {
-                        exists = true;
-                        break;
-                    }
-                }
-                if (!exists) {
+                {
                     if (streakSound.getValue()) {
                         long now = System.currentTimeMillis();
                         if (now - lastKillTime > streakReset.getValue() * 1000f) killStreak = 0;
@@ -176,6 +178,7 @@ public class KillEffect extends Module {
         }
 
         recentlyAttacked.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue() > 10_000L);
+        triggered.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue() > 60_000L || e.getKey().isRemoved());
     }
 
     @EventHandler
