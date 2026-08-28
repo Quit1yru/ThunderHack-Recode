@@ -20,7 +20,6 @@ import net.minecraft.util.Identifier;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import thunder.hack.core.Managers;
-import thunder.hack.events.impl.EventAttack;
 import thunder.hack.features.modules.Module;
 import thunder.hack.setting.Setting;
 import thunder.hack.setting.impl.ColorSetting;
@@ -51,14 +50,11 @@ public class KillEffect extends Module {
     private final Setting<Boolean> flash = new Setting<>("Flash", true, value -> mode.getValue() == Mode.Marker);
     private final Setting<Boolean> streakSound = new Setting<>("StreakSound", true, value -> mode.getValue() == Mode.Marker);
     private final Setting<Float> streakReset = new Setting<>("StreakReset", 5f, 1f, 30f, value -> mode.getValue() == Mode.Marker && streakSound.getValue());
-    private final Setting<Boolean> onlySelf = new Setting<>("SelfKill", false, value -> mode.getValue() == Mode.Marker);
     private final Setting<SoundRange> soundRange = new Setting<>("SoundRange", SoundRange.All, value -> mode.getValue() == Mode.Marker && streakSound.getValue());
     private final Setting<Float> soundDistance = new Setting<>("SoundDistance", 16f, 10f, 100f, value -> mode.getValue() == Mode.Marker && streakSound.getValue() && soundRange.getValue() == SoundRange.Distance);
-
     private final Map<Entity, Long> renderEntities = new ConcurrentHashMap<>();
     private final Map<Entity, Long> lightingEntities = new ConcurrentHashMap<>();
     private final List<DeathEffect> deathEffects = new CopyOnWriteArrayList<>();
-    private final Map<Entity, Long> recentlyAttacked = new ConcurrentHashMap<>();
     // entities whose death already fired the Marker effect this "life";
     // re-armed when the entity is alive again (FakePlayer respawn / player relogin)
     private final Map<Entity, Long> triggered = new ConcurrentHashMap<>();
@@ -143,27 +139,24 @@ public class KillEffect extends Module {
 
             if (mode.getValue() == Mode.Marker) {
                 if (!(entity instanceof PlayerEntity)) return;
-                if (onlySelf.getValue() && !recentlyAttacked.containsKey(entity)) return; // not our kill
                 if (triggered.containsKey(entity)) return; // already fired for this corpse
                 triggered.put(entity, System.currentTimeMillis());
                 double ex = entity.getX();
                 double ey = entity.getY() + 1.0;
                 double ez = entity.getZ();
-                {
-                    if (streakSound.getValue()) {
-                        long now = System.currentTimeMillis();
-                        if (now - lastKillTime > streakReset.getValue() * 1000f) killStreak = 0;
-                        killStreak++;
-                        lastKillTime = now;
-                        // MC audible distance ~ 16 * volume blocks: All = whole map (AstraPlus original), Distance = custom slider
-                        float soundVolume = switch (soundRange.getValue()) {
-                            case All -> 100f;
-                            case Distance -> soundDistance.getValue() / 16f;
-                        };
-                        mc.world.playSound(mc.player, entity.getBlockPos(), Managers.SOUND.STALKER_SOUNDEVENT, SoundCategory.BLOCKS, soundVolume, 1f);
-                    }
-                    deathEffects.add(new DeathEffect(ex, ey, ez, System.currentTimeMillis()));
+                if (streakSound.getValue()) {
+                    long now = System.currentTimeMillis();
+                    if (now - lastKillTime > streakReset.getValue() * 1000f) killStreak = 0;
+                    killStreak++;
+                    lastKillTime = now;
+                    // MC audible distance ~ 16 * volume blocks: All = whole map (AstraPlus original), Distance = custom slider
+                    float soundVolume = switch (soundRange.getValue()) {
+                        case All -> 100f;
+                        case Distance -> soundDistance.getValue() / 16f;
+                    };
+                    mc.world.playSound(mc.player, entity.getBlockPos(), Managers.SOUND.STALKER_SOUNDEVENT, SoundCategory.BLOCKS, soundVolume, 1f);
                 }
+                deathEffects.add(new DeathEffect(ex, ey, ez, System.currentTimeMillis()));
             } else {
                 renderEntities.put(entity, System.currentTimeMillis());
             }
@@ -177,14 +170,7 @@ public class KillEffect extends Module {
             });
         }
 
-        recentlyAttacked.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue() > 10_000L);
         triggered.entrySet().removeIf(e -> System.currentTimeMillis() - e.getValue() > 60_000L || e.getKey().isRemoved());
-    }
-
-    @EventHandler
-    public void onAttack(EventAttack event) {
-        if (event.getEntity() != null)
-            recentlyAttacked.put(event.getEntity(), System.currentTimeMillis());
     }
 
     @Override

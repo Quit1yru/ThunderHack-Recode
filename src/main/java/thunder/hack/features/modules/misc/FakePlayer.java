@@ -128,10 +128,6 @@ public class FakePlayer extends Module {
                 fakePlayer.setHealth(10f);
                 ThunderHack.EVENT_BUS.post(new TotemPopEvent(fakePlayer, 1));
             }
-            // credit the kill to the user even for explosion kills so
-            // KillEffect's SelfKill filter accepts it (no EventAttack fires
-            // for crystal damage)
-            ThunderHack.EVENT_BUS.post(new EventAttack(fakePlayer, false));
         }
     }
 
